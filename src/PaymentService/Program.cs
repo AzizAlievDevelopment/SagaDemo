@@ -1,3 +1,4 @@
+using PaymentService;
 using PaymentService.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -6,17 +7,24 @@ builder.Services.AddSingleton<PaymentStore>();
 
 var app = builder.Build();
 
+
 app.MapPost("/payments", (CreatePaymentRequest request, PaymentStore store) =>
 {
     if (request.Amount <= 0)
         return Results.BadRequest("Invalid amount");
 
+    // Искусственная ошибка для тестирования Saga
+    if (request.SimulateFailure)
+    {
+        return Results.Conflict(new
+        {
+            Error = "Payment declined"
+        });
+    }
+
     try
     {
-        var payment = store.Charge(
-            request.OrderId,
-            request.Amount);
-
+        var payment = store.Charge(request.OrderId, request.Amount);
         return Results.Created($"/payments/{payment.OrderId}", payment);
     }
     catch (InvalidOperationException)
@@ -24,6 +32,7 @@ app.MapPost("/payments", (CreatePaymentRequest request, PaymentStore store) =>
         return Results.Conflict("Payment already exists");
     }
 });
+
 
 app.MapGet("/payments/{orderId:guid}", (Guid orderId, PaymentStore store) =>
 {

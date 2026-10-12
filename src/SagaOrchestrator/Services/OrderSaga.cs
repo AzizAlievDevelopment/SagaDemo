@@ -27,7 +27,13 @@ public class OrderSaga(HttpClient httpClient)
             history.Add("Order created");
 
             // STEP 2: Charge Payment
-            var paymentResponse = await httpClient.PostAsJsonAsync($"{PaymentUrl}/payments", new { OrderId = orderId, request.Amount });
+            var paymentResponse = await httpClient.PostAsJsonAsync($"{PaymentUrl}/payments",
+                new
+                {
+                    OrderId = orderId,
+                    request.Amount,
+                    SimulateFailure = request.SimulatePaymentFailure
+                });
 
             paymentResponse.EnsureSuccessStatusCode();
 

@@ -4,5 +4,6 @@ public record CreateOrderRequest(
     decimal Amount,
     Guid ProductId,
     int Quantity,
-    bool SimulateInventoryFailure = false
+    bool SimulateInventoryFailure = false,
+    bool SimulatePaymentFailure = false
 );
