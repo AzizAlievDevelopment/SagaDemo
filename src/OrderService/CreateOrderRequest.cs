@@ -1,3 +1,9 @@
 ﻿namespace OrderService;
-
-public record CreateOrderRequest(Guid OrderId, decimal Amount);
+record CreateOrderRequest(
+    Guid OrderId,
+    decimal Amount,
+    Guid ProductId,
+    int Quantity,
+    bool SimulatePaymentFailure = false,
+    bool SimulateInventoryFailure = false
+);

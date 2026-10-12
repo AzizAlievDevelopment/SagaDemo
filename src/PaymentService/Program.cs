@@ -1,9 +1,28 @@
+using MassTransit;
 using PaymentService;
+using PaymentService.Consumers;
 using PaymentService.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSingleton<PaymentStore>();
+
+builder.Services.AddMassTransit(x =>
+{
+    x.AddConsumer<OrderCreatedConsumer>();
+    x.AddConsumer<InventoryReservationFailedConsumer>();
+    
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        cfg.Host("localhost", "/", h =>
+        {
+            h.Username("saga");
+            h.Password("saga123");
+        });
+
+        cfg.ConfigureEndpoints(context);
+    });
+});
 
 var app = builder.Build();
 

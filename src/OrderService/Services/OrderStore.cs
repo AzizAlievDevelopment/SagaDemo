@@ -35,4 +35,18 @@ public class OrderStore
         order.Status = OrderStatus.Cancelled;
         return true;
     }
+    
+    
+
+    public bool Complete(Guid orderId)
+    {
+        if (!_orders.TryGetValue(orderId, out var order))
+            return false;
+
+        if (order.Status == OrderStatus.Cancelled)
+            return false;
+
+        order.Status = OrderStatus.Completed;
+        return true;
+    }
 }

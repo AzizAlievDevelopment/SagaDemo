@@ -1,8 +1,26 @@
+using InventoryService.Consumers;
 using InventoryService.Services;
+using MassTransit;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSingleton<InventoryStore>();
+
+builder.Services.AddMassTransit(x =>
+{
+    x.AddConsumer<PaymentCompletedConsumer>();
+    
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        cfg.Host("localhost", "/", h =>
+        {
+            h.Username("saga");
+            h.Password("saga123");
+        });
+
+        cfg.ConfigureEndpoints(context);
+    });
+});
 
 var app = builder.Build();
 

@@ -3,8 +3,10 @@ namespace OrderService.Models;
 public enum OrderStatus
 {
     Created,
+    Completed,
     Cancelled
 }
+
 
 public class Order
 {
