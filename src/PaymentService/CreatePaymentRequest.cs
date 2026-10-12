@@ -1,0 +1,1 @@
+﻿record CreatePaymentRequest(Guid OrderId, decimal Amount);
