@@ -1,5 +1,6 @@
 ﻿
 $services = @(
+    "SagaOrchestrator",
     "OrderService",
     "PaymentService",
     "InventoryService"

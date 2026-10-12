@@ -8,7 +8,7 @@ builder.Services.AddSingleton<InventoryStore>();
 
 builder.Services.AddMassTransit(x =>
 {
-    x.AddConsumer<PaymentCompletedConsumer>();
+    x.AddConsumer<ReserveInventoryConsumer>();
     
     x.UsingRabbitMq((context, cfg) =>
     {

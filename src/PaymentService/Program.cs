@@ -9,8 +9,8 @@ builder.Services.AddSingleton<PaymentStore>();
 
 builder.Services.AddMassTransit(x =>
 {
-    x.AddConsumer<OrderCreatedConsumer>();
-    x.AddConsumer<InventoryReservationFailedConsumer>();
+    x.AddConsumer<ChargePaymentConsumer>();
+    x.AddConsumer<RefundPaymentConsumer>();
     
     x.UsingRabbitMq((context, cfg) =>
     {

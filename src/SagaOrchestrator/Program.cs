@@ -1,20 +1,35 @@
-using System.Text.Json;
-using SagaOrchestrator.Models;
-using SagaOrchestrator.Services;
+
+using MassTransit;
+using Saga.Contracts.Orchestration;
+using SagaOrchestrator.StateMachines;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddHttpClient<OrderSaga>(client => client.Timeout = TimeSpan.FromSeconds(10) );
-builder.Services.AddSingleton<SagaIdempotencyStore>();
+builder.Services.AddMassTransit(x =>
+{
+    x.AddSagaStateMachine<
+        OrderSagaStateMachine,
+        OrderSagaState>()
+        .InMemoryRepository();
+
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        cfg.Host("localhost", "/", h =>
+        {
+            h.Username("saga");
+            h.Password("saga123");
+        });
+
+        cfg.ConfigureEndpoints(context);
+    });
+});
 
 var app = builder.Build();
 
 app.MapPost("/saga/orders",
     async (
-        HttpContext context,
-        CreateOrderRequest request,
-        OrderSaga saga,
-        SagaIdempotencyStore store) =>
+        StartOrderRequest request,
+        IPublishEndpoint publisher) =>
     {
         if (request.Amount <= 0 ||
             request.Quantity <= 0 ||
@@ -23,38 +38,23 @@ app.MapPost("/saga/orders",
             return Results.BadRequest("Invalid request");
         }
 
-        var key = context.Request.Headers["Idempotency-Key"].ToString();
+        var orderId = Guid.NewGuid();
 
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            return Results.BadRequest("Idempotency-Key header is required");
-        }
+        await publisher.Publish(new StartOrderSaga(
+            orderId,
+            request.Amount,
+            request.ProductId,
+            request.Quantity,
+            request.SimulatePaymentFailure,
+            request.SimulateInventoryFailure
+        ));
 
-        // Одинаковый запрос создаёт одинаковый fingerprint.
-        var fingerprint = JsonSerializer.Serialize(request);
-
-        SagaResult result;
-
-        try
-        {
-            result = await store.ExecuteAsync(key, fingerprint, () => saga.ExecuteAsync(request));
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Results.Conflict(new
+        return Results.Accepted(
+            value: new
             {
-                Error = ex.Message
+                OrderId = orderId,
+                Status = "Accepted"
             });
-        }
-
-        return result.Status switch
-        {
-            "Completed" => Results.Ok(result),
-
-            "Compensated" => Results.Json(result, statusCode: 409),
-
-            _ => Results.Json(result, statusCode: 500)
-        };
     });
 
 app.Run();
