@@ -10,10 +10,9 @@ var app = builder.Build();
 
 app.MapPost("/payments", (CreatePaymentRequest request, PaymentStore store) =>
 {
-    if (request.Amount <= 0)
-        return Results.BadRequest("Invalid amount");
+    if (request.Amount <= 0 || request.OrderId == Guid.Empty)
+        return Results.BadRequest("Invalid payment request");
 
-    // Искусственная ошибка для тестирования Saga
     if (request.SimulateFailure)
     {
         return Results.Conflict(new
@@ -24,12 +23,20 @@ app.MapPost("/payments", (CreatePaymentRequest request, PaymentStore store) =>
 
     try
     {
+        var existing = store.Get(request.OrderId);
+
         var payment = store.Charge(request.OrderId, request.Amount);
-        return Results.Created($"/payments/{payment.OrderId}", payment);
+
+        return existing is null
+            ? Results.Created($"/payments/{payment.OrderId}", payment)
+            : Results.Ok(payment);
     }
-    catch (InvalidOperationException)
+    catch (InvalidOperationException ex)
     {
-        return Results.Conflict("Payment already exists");
+        return Results.Conflict(new
+        {
+            Error = ex.Message
+        });
     }
 });
 

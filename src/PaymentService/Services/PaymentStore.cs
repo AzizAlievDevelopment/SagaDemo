@@ -1,38 +1,70 @@
-using System.Collections.Concurrent;
 using PaymentService.Models;
 
 namespace PaymentService.Services;
 
 public class PaymentStore
 {
-    private readonly ConcurrentDictionary<Guid, Payment> _payments = new();
+    private readonly Dictionary<Guid, Payment> _payments = new();
+    private readonly Lock _lock = new();
 
     public Payment? Get(Guid orderId)
     {
-        return _payments.GetValueOrDefault(orderId);
+        lock (_lock)
+        {
+            return _payments.GetValueOrDefault(orderId);
+        }
     }
 
     public Payment Charge(Guid orderId, decimal amount)
     {
-        var payment = new Payment
+        lock (_lock)
         {
-            OrderId = orderId,
-            Amount = amount,
-            Status = PaymentStatus.Completed
-        };
+            if (_payments.TryGetValue(orderId, out var existing))
+            {
+                if (existing.Amount != amount)
+                    throw new InvalidOperationException("Payment amount mismatch");
 
-        if (!_payments.TryAdd(orderId, payment))
-            throw new InvalidOperationException("Payment already exists");
+                if (existing.Status == PaymentStatus.Refunded)
+                    throw new InvalidOperationException("Payment already refunded");
 
-        return payment;
+                // Идемпотентность:
+                // Не создаём новый платёж
+                return existing;
+            }
+
+            var payment = new Payment
+            {
+                OrderId = orderId,
+                Amount = amount,
+                Status = PaymentStatus.Completed
+            };
+
+            _payments.Add(orderId, payment);
+
+            Console.WriteLine($"CHARGE executed: {orderId}");
+
+            return payment;
+        }
     }
 
     public bool Refund(Guid orderId)
     {
-        if (!_payments.TryGetValue(orderId, out var payment))
-            return false;
+        lock (_lock)
+        {
+            if (!_payments.TryGetValue(orderId, out var payment))
+                return false;
 
-        payment.Status = PaymentStatus.Refunded;
-        return true;
+            if (payment.Status == PaymentStatus.Refunded)
+            {
+                // Повторный Refund ничего не делает
+                return true;
+            }
+
+            payment.Status = PaymentStatus.Refunded;
+
+            Console.WriteLine($"REFUND executed: {orderId}");
+
+            return true;
+        }
     }
 }

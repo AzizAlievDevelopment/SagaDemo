@@ -8,8 +8,7 @@ public class OrderSaga(HttpClient httpClient)
     private const string PaymentUrl = "http://localhost:5002";
     private const string InventoryUrl = "http://localhost:5003";
 
-    public async Task<SagaResult> ExecuteAsync(
-        CreateOrderRequest request)
+    public async Task<SagaResult> ExecuteAsync(CreateOrderRequest request)
     {
         var orderId = Guid.NewGuid();
         var completedSteps = new Stack<string>();
